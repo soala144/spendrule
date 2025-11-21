@@ -1,0 +1,1089 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spendrule-contractsphere-schema-v2.3.1.json",
+  "title": "SpendRule ContractSphere Schema",
+  "description": "Enhanced contract management schema with optional extraction confidence and hallucination prevention - FULLY BACKWARD COMPATIBLE with v2.3",
+  "version": "2.3.1",
+  "type": "object",
+  "properties": {
+    "_extraction_metadata": {
+      "type": "object",
+      "description": "OPTIONAL: Metadata about extraction process and quality",
+      "properties": {
+        "extraction_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+          "description": "Version of extraction engine used"
+        },
+        "processing_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of extraction"
+        },
+        "overall_confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall extraction confidence score"
+        },
+        "document_type_detected": {
+          "type": "string",
+          "enum": ["standard_contract", "amendment", "sow", "master_agreement", "participation_exhibit", "schedule", "other"],
+          "description": "AI-detected document type"
+        },
+        "total_pages": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total pages in source document"
+        }
+      },
+      "additionalProperties": false
+    },
+    "parties": {
+      "type": "array",
+      "description": "Contracting parties involved in the agreement",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "properties": {
+          "party_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the party"
+          },
+          "party_type": {
+            "type": "string",
+            "enum": ["customer", "vendor", "contractor", "partner", "internal", "gpo", "participant"],
+            "description": "Type of contracting party"
+          },
+          "legal_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Official legal name of the party"
+          },
+          "trading_name": {
+            "type": "string",
+            "description": "Trading or DBA name if different from legal name"
+          },
+          "external_ids": {
+            "type": "object",
+            "description": "External system identifiers (CRM ID, ERP ID, etc.)",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "identifiers": {
+            "type": "object",
+            "properties": {
+              "address": {
+                "type": "string",
+                "description": "Primary business address"
+              },
+              "website": {
+                "type": "string",
+                "format": "uri",
+                "description": "Company website URL"
+              }
+            },
+            "additionalProperties": true
+          },
+          "_extraction_quality": {
+            "type": "object",
+            "description": "OPTIONAL: Extraction quality indicators",
+            "properties": {
+              "confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Confidence in party extraction"
+              },
+              "source_page": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Page where party information was found"
+              },
+              "found_in_document": {
+                "type": "boolean",
+                "description": "Whether party was explicitly stated vs inferred"
+              },
+              "extraction_method": {
+                "type": "string",
+                "enum": ["direct", "inferred", "calculated"],
+                "description": "How this data was extracted"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["party_id", "party_type", "legal_name"],
+        "additionalProperties": false
+      }
+    },
+    "billable_items": {
+      "type": "array",
+      "description": "Items and services that can be billed under this contract",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the billable item"
+          },
+          "item_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the billable item or service"
+          },
+          "external_ids": {
+            "type": "object",
+            "description": "External system identifiers for this item",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "pricing_model_id": {
+            "type": "string",
+            "description": "Reference to the pricing model used for this item"
+          },
+          "pricing_details": {
+            "type": "object",
+            "properties": {
+              "list_price": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Standard list price for the item"
+              },
+              "unit_cost": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Unit cost basis for pricing calculations"
+              },
+              "contractual_price_floor": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Minimum allowable price under contract terms"
+              },
+              "price_ceiling": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Maximum allowable price under contract terms"
+              },
+              "rate_type": {
+                "type": "string",
+                "enum": ["fixed", "variable", "tiered", "usage-based", "subscription", "performance-based"],
+                "description": "Type of pricing rate structure"
+              },
+              "allowed_variance": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["percentage", "absolute", "none"]
+                  },
+                  "value": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "required": ["type", "value"],
+                "additionalProperties": false
+              },
+              "line_item_code": {
+                "type": "string",
+                "description": "Billing system line item code"
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "description": "ISO 4217 currency code"
+              },
+              "unit_of_measure": {
+                "type": "string",
+                "description": "Unit of measurement for billing (hours, seats, GB, etc.)"
+              },
+              "billing_frequency": {
+                "type": "string",
+                "enum": ["one-time", "monthly", "quarterly", "annually", "usage-based", "weekly"],
+                "description": "How frequently this item is billed"
+              },
+              "custom_attributes": {
+                "type": "object",
+                "description": "Additional custom pricing attributes",
+                "additionalProperties": {
+                  "type": ["string", "number", "boolean", "object", "array"]
+                }
+              },
+              "reimbursement_terms": {
+                "$ref": "#/$defs/reimbursement_terms"
+              },
+              "_extraction_quality": {
+                "type": "object",
+                "description": "OPTIONAL: Quality indicators for pricing extraction",
+                "properties": {
+                  "confidence": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Overall confidence in pricing extraction"
+                  },
+                  "source_page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Page where pricing was found"
+                  },
+                  "field_confidence": {
+                    "type": "object",
+                    "description": "Confidence scores for individual pricing fields",
+                    "properties": {
+                      "list_price": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                      },
+                      "currency": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                      },
+                      "billing_frequency": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "found_in_document": {
+                    "type": "object",
+                    "description": "Which fields were explicitly found vs inferred",
+                    "properties": {
+                      "list_price": {
+                        "type": "boolean"
+                      },
+                      "currency": {
+                        "type": "boolean"
+                      },
+                      "unit_of_measure": {
+                        "type": "boolean"
+                      },
+                      "billing_frequency": {
+                        "type": "boolean"
+                      },
+                      "price_floor": {
+                        "type": "boolean"
+                      },
+                      "price_ceiling": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "extraction_method": {
+                    "type": "string",
+                    "enum": ["direct", "inferred", "calculated"],
+                    "description": "Primary method used for pricing extraction"
+                  },
+                  "requires_review": {
+                    "type": "boolean",
+                    "description": "Whether this item should be flagged for human review"
+                  },
+                  "extraction_issues": {
+                    "type": "array",
+                    "description": "Specific issues encountered",
+                    "items": {
+                      "type": "string",
+                      "enum": ["pricing_ambiguous", "currency_unclear", "multiple_prices_found", "conflicting_terms", "partial_information"]
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": ["list_price", "currency"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["item_id", "item_name", "pricing_model_id", "pricing_details"],
+        "additionalProperties": false
+      }
+    },
+    "pricing_models": {
+      "type": "array",
+      "description": "Pricing calculation models used by billable items",
+      "items": {
+        "type": "object",
+        "properties": {
+          "model_id": {
+            "type": "string",
+            "description": "Unique identifier for the pricing model"
+          },
+          "model_type": {
+            "type": "string",
+            "enum": ["flat-rate", "tiered", "volume", "usage-based", "hybrid", "performance-adjusted"],
+            "description": "Type of pricing model"
+          },
+          "model_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable name for the pricing model"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+            "description": "Version of the pricing model (semantic versioning)"
+          },
+          "external_ids": {
+            "type": "object",
+            "description": "External system identifiers for this pricing model",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "version_history": {
+            "type": "array",
+            "description": "Historical versions of this pricing model",
+            "items": {
+              "type": "object",
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
+                },
+                "effective_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "change_reason": {
+                  "type": "string",
+                  "description": "Reason for the version change"
+                }
+              },
+              "required": ["version", "effective_date"],
+              "additionalProperties": false
+            }
+          },
+          "calculation_method": {
+            "type": "string",
+            "description": "Method used to calculate pricing with this model"
+          },
+          "tiers": {
+            "type": "array",
+            "description": "Pricing tiers for tiered pricing models",
+            "items": {
+              "type": "object",
+              "properties": {
+                "min_value": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "max_value": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "rate": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$"
+                },
+                "_tier_confidence": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0,
+                  "description": "OPTIONAL: Confidence in this tier's data"
+                }
+              },
+              "required": ["min_value", "max_value", "rate", "currency"],
+              "additionalProperties": false
+            }
+          },
+          "_extraction_quality": {
+            "type": "object",
+            "description": "OPTIONAL: Quality indicators for pricing model extraction",
+            "properties": {
+              "confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Confidence in pricing model extraction"
+              },
+              "source_page": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Page where model was defined"
+              },
+              "found_in_document": {
+                "type": "boolean",
+                "description": "Whether model was explicitly defined vs inferred"
+              },
+              "model_type_confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Confidence in model type classification"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": ["model_id", "model_type", "model_name", "version"],
+        "additionalProperties": true
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "description": "Main contract details and terms",
+      "properties": {
+        "contract_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique contract identifier"
+        },
+        "contract_title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Title or name of the contract"
+        },
+        "contract_type": {
+          "type": "string",
+          "enum": ["service", "purchase", "license", "partnership", "employment", "nda", "healthcare-services", "gpo-agreement", "master-service"],
+          "description": "Type of contract"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+(\\.\\d+)?$",
+          "description": "Contract version (semantic versioning)"
+        },
+        "external_ids": {
+          "type": "object",
+          "description": "External system identifiers for this contract",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "effective_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date when the contract becomes effective"
+        },
+        "expiration_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Date when the contract expires"
+        },
+        "governing_law": {
+          "type": "string",
+          "description": "Jurisdiction governing the contract"
+        },
+        "termination_clause": {
+          "type": "string",
+          "description": "Terms under which the contract can be terminated"
+        },
+        "termination_rights": {
+          "type": "string",
+          "description": "Specific termination rights of each party"
+        },
+        "auto_renewal": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether auto-renewal is enabled"
+            },
+            "renewal_period": {
+              "type": "string",
+              "description": "Period for automatic renewal"
+            },
+            "notice_period": {
+              "type": "string",
+              "description": "Required notice period to prevent auto-renewal"
+            }
+          },
+          "required": ["enabled"],
+          "additionalProperties": false
+        },
+        "amendments": {
+          "type": "array",
+          "description": "Contract amendments and modifications",
+          "items": {
+            "type": "object",
+            "properties": {
+              "amendment_id": {
+                "type": "string",
+                "description": "Unique identifier for the amendment"
+              },
+              "amendment_date": {
+                "type": "string",
+                "format": "date",
+                "description": "Date the amendment was created"
+              },
+              "effective_date": {
+                "type": "string",
+                "format": "date",
+                "description": "Date the amendment becomes effective"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Summary of changes made in the amendment"
+              }
+            },
+            "required": ["amendment_id", "amendment_date", "effective_date"],
+            "additionalProperties": false
+          }
+        },
+        "locations": {
+          "type": "array",
+          "description": "Locations covered by this contract",
+          "items": {
+            "type": "object",
+            "properties": {
+              "location_id": {
+                "type": "string",
+                "description": "Unique identifier for the location"
+              },
+              "location_name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of the location"
+              },
+              "location_type": {
+                "type": "string",
+                "enum": ["headquarters", "branch", "warehouse", "datacenter", "remote", "clinic", "hospital", "facility"],
+                "description": "Type of location"
+              },
+              "address": {
+                "type": "string",
+                "description": "Physical address of the location"
+              },
+              "service_terms": {
+                "type": "object",
+                "description": "Location-specific service terms",
+                "properties": {
+                  "response_time": {
+                    "type": "string",
+                    "description": "Required response time for this location"
+                  },
+                  "price_adjustment": {
+                    "type": "string",
+                    "description": "Price adjustments specific to this location"
+                  },
+                  "custom_agreement_required": {
+                    "type": "boolean",
+                    "description": "Whether this location requires custom agreements"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "required": ["location_id", "location_name", "location_type"],
+            "additionalProperties": false
+          }
+        },
+        "contract_status": {
+          "type": "string",
+          "enum": ["draft", "pending", "active", "expired", "terminated", "suspended"],
+          "description": "Current status of the contract"
+        },
+        "processing_status": {
+          "type": "string",
+          "enum": ["new", "in-review", "approved", "signed", "filed"],
+          "description": "Processing workflow status"
+        },
+        "key_dates": {
+          "type": "array",
+          "description": "Important dates related to the contract",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date_type": {
+                "type": "string",
+                "description": "Type of date (milestone, deadline, etc.)"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the date significance"
+              },
+              "_confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "OPTIONAL: Confidence in date extraction"
+              }
+            },
+            "required": ["date_type", "date"],
+            "additionalProperties": false
+          }
+        },
+        "version_history": {
+          "type": "array",
+          "description": "Historical versions of this contract",
+          "items": {
+            "type": "object",
+            "properties": {
+              "version": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
+              },
+              "effective_date": {
+                "type": "string",
+                "format": "date"
+              },
+              "change_reason": {
+                "type": "string",
+                "description": "Reason for the version change"
+              }
+            },
+            "required": ["version", "effective_date"],
+            "additionalProperties": false
+          }
+        },
+        "document_references": {
+          "type": "array",
+          "description": "References to related documents",
+          "items": {
+            "type": "object",
+            "properties": {
+              "document_id": {
+                "type": "string",
+                "description": "Unique identifier for the document"
+              },
+              "document_type": {
+                "type": "string",
+                "enum": ["contract", "amendment", "exhibit", "schedule", "sow", "participation-exhibit", "business-associate-agreement"],
+                "description": "Type of document"
+              },
+              "uri": {
+                "type": "string",
+                "format": "uri",
+                "description": "URI to access the document"
+              }
+            },
+            "required": ["document_id", "document_type"],
+            "additionalProperties": false
+          }
+        },
+        "service_requirements": {
+          "type": "array",
+          "description": "Service delivery requirements and specifications",
+          "items": {
+            "type": "object",
+            "properties": {
+              "requirement_type": {
+                "type": "string",
+                "enum": ["training", "support", "implementation", "maintenance", "emergency-response", "performance-monitoring", "compliance", "disaster-recovery"],
+                "description": "Type of service requirement"
+              },
+              "minimum_seats": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Minimum number of seats/licenses required"
+              },
+              "delivery_methods": {
+                "type": "array",
+                "description": "Acceptable delivery methods for the service",
+                "items": {
+                  "type": "string",
+                  "enum": ["on-site", "remote", "hybrid", "self-service"]
+                }
+              },
+              "cost_controls": {
+                "type": "object",
+                "description": "Cost control mechanisms for the service",
+                "properties": {
+                  "additional_seat_cost": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Cost per additional seat beyond minimum"
+                  },
+                  "travel_inclusions": {
+                    "type": "array",
+                    "description": "What travel expenses are included",
+                    "items": {
+                      "type": "string",
+                      "enum": ["airfare", "lodging", "meals", "ground-transport", "none"]
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "required": ["requirement_type"],
+            "additionalProperties": true
+          }
+        },
+        "_extraction_quality": {
+          "type": "object",
+          "description": "OPTIONAL: Quality indicators for contract extraction",
+          "properties": {
+            "confidence": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Overall confidence in contract extraction"
+            },
+            "found_in_document": {
+              "type": "object",
+              "description": "Which key fields were found vs inferred",
+              "properties": {
+                "contract_id": {
+                  "type": "boolean"
+                },
+                "effective_date": {
+                  "type": "boolean"
+                },
+                "expiration_date": {
+                  "type": "boolean"
+                },
+                "governing_law": {
+                  "type": "boolean"
+                },
+                "auto_renewal": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "date_confidence": {
+              "type": "object",
+              "description": "Confidence in critical date extractions",
+              "properties": {
+                "effective_date": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                },
+                "expiration_date": {
+                  "type": "number",
+                  "minimum": 0.0,
+                  "maximum": 1.0
+                }
+              },
+              "additionalProperties": false
+            },
+            "requires_review": {
+              "type": "boolean",
+              "description": "Whether contract should be flagged for human review"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_title",
+        "contract_type",
+        "effective_date",
+        "expiration_date"
+      ],
+      "additionalProperties": true
+    },
+    "payment_terms": {
+      "type": "object",
+      "description": "Payment terms and conditions",
+      "properties": {
+        "payment_schedule": {
+          "type": "string",
+          "enum": ["upfront", "monthly", "quarterly", "annually", "milestone", "arrears", "weekly"],
+          "description": "When payments are due"
+        },
+        "payment_method": {
+          "type": "string",
+          "enum": ["wire", "check", "ach", "credit-card", "invoice", "electronic"],
+          "description": "Accepted payment methods"
+        },
+        "net_days": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 365,
+          "description": "Number of days to pay invoices"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217 currency code for payments"
+        },
+        "tax_handling": {
+          "type": "string",
+          "enum": ["inclusive", "exclusive", "exempt", "varies"],
+          "description": "How taxes are handled in pricing"
+        },
+        "invoice_requirements": {
+          "type": "array",
+          "description": "Required information on invoices",
+          "items": {
+            "type": "string"
+          }
+        },
+        "late_fee_terms": {
+          "type": "string",
+          "description": "Terms for late payment fees"
+        },
+        "discount_terms": {
+          "type": "string",
+          "description": "Available early payment discounts"
+        },
+        "escalation_clauses": {
+          "type": "string",
+          "description": "Price escalation clauses"
+        },
+        "reimbursement_terms": {
+          "$ref": "#/$defs/reimbursement_terms"
+        },
+        "_extraction_quality": {
+          "type": "object",
+          "description": "OPTIONAL: Quality indicators for payment terms extraction",
+          "properties": {
+            "confidence": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Confidence in payment terms extraction"
+            },
+            "source_page": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page where payment terms were found"
+            },
+            "found_in_document": {
+              "type": "object",
+              "description": "Which payment fields were found vs inferred",
+              "properties": {
+                "payment_schedule": {
+                  "type": "boolean"
+                },
+                "net_days": {
+                  "type": "boolean"
+                },
+                "currency": {
+                  "type": "boolean"
+                },
+                "late_fee_terms": {
+                  "type": "boolean"
+                },
+                "discount_terms": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "payment_schedule",
+        "payment_method",
+        "net_days",
+        "currency"
+      ],
+      "additionalProperties": true
+    },
+    "_validation_summary": {
+      "type": "object",
+      "description": "OPTIONAL: Overall extraction quality and validation results",
+      "properties": {
+        "overall_confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Weighted average confidence across all extractions"
+        },
+        "total_billable_items": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of billable items found"
+        },
+        "high_confidence_items": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Items with confidence > 0.8"
+        },
+        "items_requiring_review": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Items flagged for human review"
+        },
+        "estimated_annual_value": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Calculated total annual contract value"
+        },
+        "critical_missing_fields": {
+          "type": "array",
+          "description": "Required fields that could not be extracted",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extraction_issues": {
+          "type": "array",
+          "description": "Major issues encountered during extraction",
+          "items": {
+            "type": "string",
+            "enum": ["document_quality_poor", "pricing_structure_complex", "conflicting_information", "incomplete_contract"]
+          }
+        },
+        "date_consistency_check": {
+          "type": "boolean",
+          "description": "Whether effective_date < expiration_date"
+        },
+        "currency_consistency_check": {
+          "type": "boolean",
+          "description": "Whether same currency used throughout contract"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "parties",
+    "billable_items",
+    "pricing_models",
+    "contracts",
+    "payment_terms"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "reimbursement_terms": {
+      "type": "object",
+      "description": "Terms and conditions for expense reimbursements",
+      "properties": {
+        "process": {
+          "type": "string",
+          "description": "Process for submitting reimbursement requests"
+        },
+        "timeline": {
+          "type": "string",
+          "description": "Expected timeline for reimbursement processing"
+        },
+        "documentation_requirements": {
+          "type": "string",
+          "description": "Required documentation for reimbursement claims"
+        },
+        "approval_required": {
+          "type": "boolean",
+          "description": "Whether pre-approval is required for reimbursable expenses"
+        },
+        "expense_categories": {
+          "type": "array",
+          "description": "Categories of reimbursable expenses",
+          "items": {
+            "type": "string",
+            "enum": ["travel", "meals", "lodging", "materials", "equipment", "training", "transportation", "communications"]
+          }
+        },
+        "limits": {
+          "type": "object",
+          "description": "Spending limits for reimbursable expenses",
+          "properties": {
+            "daily_meal_limit": {
+              "type": "number",
+              "minimum": 0
+            },
+            "lodging_limit": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "_extraction_quality": {
+          "type": "object",
+          "description": "OPTIONAL: Quality indicators for reimbursement terms",
+          "properties": {
+            "confidence": {
+              "type": "number",
+              "minimum": 0.0,
+              "maximum": 1.0,
+              "description": "Confidence in reimbursement terms extraction"
+            },
+            "found_in_document": {
+              "type": "boolean",
+              "description": "Whether reimbursement terms were explicitly found"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "schema_metadata": {
+    "product": "SpendRule ContractSphere",
+    "schema_version": "2.3.1",
+    "release_date": "2025-07-02",
+    "vendor": "SpendRule",
+    "compatibility": {
+      "backward_compatible": true,
+      "breaking_changes": false,
+      "migration_required": false,
+      "v2_3_compatibility": "100% - All v2.3 documents process without changes"
+    },
+    "changelog": {
+      "2.3.1": [
+        "BACKWARD COMPATIBLE: Added optional extraction quality tracking",
+        "Added '_extraction_metadata' optional section for processing details",
+        "Added '_extraction_quality' optional objects throughout schema",
+        "Added confidence scoring, source attribution, and found/inferred flags",
+        "Added 'validation_summary' optional section for quality metrics",
+        "Added 'tier_confidence' optional field to pricing model tiers",
+        "All quality enhancement fields are prefixed with '' and fully optional",
+        "Zero breaking changes - all v2.3 schemas remain 100% valid",
+        "New fields enable hallucination prevention and extraction validation",
+        "Supports automated quality control through optional confidence thresholds"
+      ],
+      "2.3.0": [
+        "Enhanced flexibility for complex contracts",
+        "Extended party types, contract types, and service requirements",
+        "Added performance-based pricing and enhanced custom attributes"
+      ]
+    },
+    "validation_rules": {
+      "backward_compatibility": "All v2.3 data processes without modification",
+      "optional_enhancements": "Quality fields prefixed with '' are entirely optional",
+      "confidence_usage": "When present, confidence scores enable automated quality control",
+      "extraction_priorities": "Focus on billable_items pricing_details for highest business value",
+      "hallucination_prevention": "Use found_in_document flags to distinguish explicit vs inferred data"
+    },
+    "usage_guidelines": {
+      "existing_v2_3_systems": "Continue using current schema - no changes required",
+      "new_implementations": "Include optional quality fields for enhanced extraction",
+      "gradual_adoption": "Add quality fields incrementally as extraction engine improves",
+      "confidence_thresholds": "Recommended: >0.8 auto-approve, <0.6 human review",
+      "quality_monitoring": "Use _validation_summary for extraction pipeline monitoring"
+    },
+    "ai_extraction_notes": {
+      "priority_fields": [
+        "billable_items.pricing_details.list_price",
+        "billable_items.pricing_details.currency",
+        "contracts.effective_date",
+        "contracts.expiration_date",
+        "payment_terms.net_days"
+      ],
+      "confidence_calculation": [
+        "1.0 = Direct quote from document",
+        "0.8-0.9 = Clear statement, minor interpretation",
+        "0.6-0.7 = Inferred from context",
+        "0.4-0.5 = Significant interpretation required",
+        "<0.4 = Flag for human review"
+      ],
+      "hallucination_prevention": [
+        "Use found_in_document=false instead of guessing missing data",
+        "Set requires_review=true for ambiguous content",
+        "Mark extraction_method as 'inferred' when not directly stated",
+        "Populate extraction_issues array for problematic content"
+      ]
+    }
+  }
+}

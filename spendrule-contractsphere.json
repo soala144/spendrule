@@ -1,0 +1,1136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contractsphere-validation-production-v1.1.json",
+  "title": "ContractSphere Validation Engine - Production Schema",
+  "description": "Production-ready service contract invoice validation engine with aggregated billing support",
+  "version": "1.1.0",
+  "type": "object",
+  "properties": {
+    "validation_request": {
+      "type": "object",
+      "description": "Production validation request supporting both detailed and aggregated invoices",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique validation request identifier"
+        },
+        "invoice_data": {
+          "type": "object",
+          "properties": {
+            "invoice_header": {
+              "type": "object",
+              "properties": {
+                "invoice_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Unique invoice identifier"
+                },
+                "vendor_party_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "ContractSphere parties.party_id for vendor"
+                },
+                "customer_party_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "ContractSphere parties.party_id for customer"
+                },
+                "invoice_date": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "Invoice date (ISO 8601)"
+                },
+                "total_amount": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Total invoice amount"
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$",
+                  "description": "ISO 4217 currency code"
+                },
+                "service_period": {
+                  "type": "object",
+                  "properties": {
+                    "start_date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "end_date": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  },
+                  "required": ["start_date", "end_date"],
+                  "additionalProperties": false
+                },
+                "billing_aggregation_level": {
+                  "type": "string",
+                  "enum": ["line_item", "category", "contract", "location", "custom"],
+                  "default": "line_item",
+                  "description": "Level at which services are aggregated on invoice"
+                },
+                "aggregation_reference": {
+                  "type": "string",
+                  "description": "Reference to what's being aggregated (contract ID, location, etc.)"
+                },
+                "external_ids": {
+                  "type": "object",
+                  "description": "External system identifiers (ERP invoice ID, etc.)",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["invoice_id", "vendor_party_id", "customer_party_id", "invoice_date", "total_amount", "currency"],
+              "additionalProperties": false
+            },
+            "line_items": {
+              "type": "array",
+              "description": "Invoice line items supporting both detailed and aggregated billing",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "line_number": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Sequential line item number"
+                  },
+                  "item_description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Service or item description"
+                  },
+                  "billable_item_reference": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "OPTIONAL: Direct reference to ContractSphere billable_items.item_id"
+                  },
+                  "aggregation_type": {
+                    "type": "string",
+                    "enum": ["single_item", "category_bundle", "full_contract", "location_bundle", "custom_group"],
+                    "default": "single_item",
+                    "description": "How multiple items are aggregated in this line"
+                  },
+                  "aggregated_items": {
+                    "type": "array",
+                    "description": "List of billable items included in this aggregated line",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "billable_item_id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "ContractSphere billable item UUID"
+                        },
+                        "item_name": {
+                          "type": "string",
+                          "description": "Name of the item for reference"
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Quantity of this item included"
+                        },
+                        "allocated_amount": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Portion of line amount attributed to this item"
+                        }
+                      },
+                      "required": ["billable_item_id", "quantity"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "aggregation_method": {
+                    "type": "string",
+                    "enum": ["sum", "weighted_average", "tiered", "custom"],
+                    "description": "How individual prices were combined"
+                  },
+                  "base_calculation": {
+                    "type": "object",
+                    "description": "Shows how aggregated price was calculated",
+                    "properties": {
+                      "formula": {
+                        "type": "string",
+                        "description": "Calculation formula used"
+                      },
+                      "total_units": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Total number of units aggregated"
+                      },
+                      "discount_applied": {
+                        "type": "number",
+                        "description": "Discount percentage applied"
+                      },
+                      "base_amount": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Amount before adjustments"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Quantity of services/items"
+                  },
+                  "unit_price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Price per unit"
+                  },
+                  "extended_price": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Total line amount"
+                  },
+                  "unit_of_measure": {
+                    "type": "string",
+                    "description": "Unit of measurement (hours, seats, GB, month, etc.)"
+                  },
+                  "service_location_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "OPTIONAL: ContractSphere contracts.locations.location_id"
+                  },
+                  "service_dates": {
+                    "type": "object",
+                    "properties": {
+                      "start_date": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "end_date": {
+                        "type": "string",
+                        "format": "date"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "external_ids": {
+                    "type": "object",
+                    "description": "External identifiers for line item matching",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["line_number", "item_description", "quantity", "unit_price", "extended_price"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["invoice_header", "line_items"],
+          "additionalProperties": false
+        },
+        "contract_context": {
+          "type": "object",
+          "description": "ContractSphere contract data for validation",
+          "properties": {
+            "primary_contract_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Primary ContractSphere contract UUID"
+            },
+            "billing_preferences": {
+              "type": "object",
+              "description": "Contract-specific billing preferences",
+              "properties": {
+                "invoice_detail_level": {
+                  "type": "string",
+                  "enum": ["detailed", "category_summary", "contract_summary", "custom"],
+                  "default": "detailed",
+                  "description": "Expected level of invoice detail"
+                },
+                "consolidation_rules": {
+                  "type": "array",
+                  "description": "Rules for how items should be consolidated",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "rule_type": {
+                        "type": "string",
+                        "enum": ["combine_by_category", "combine_all", "separate_by_location", "custom"]
+                      },
+                      "applies_to": {
+                        "type": "array",
+                        "description": "Item categories or IDs this rule applies to",
+                        "items": {"type": "string"}
+                      },
+                      "description": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["rule_type"],
+                    "additionalProperties": false
+                  }
+                },
+                "requires_detail_backup": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether detailed reports are required separately"
+                },
+                "aggregation_tolerance": {
+                  "type": "object",
+                  "description": "Tolerance for aggregated invoice validation",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["percentage", "absolute"]
+                    },
+                    "value": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "required": ["type", "value"],
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "contractsphere_data": {
+              "type": "object",
+              "description": "Core ContractSphere v2.3 contract data",
+              "properties": {
+                "parties": {
+                  "type": "array",
+                  "description": "Contract parties",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "party_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "party_type": {
+                        "type": "string",
+                        "enum": ["customer", "vendor", "contractor", "partner", "internal"]
+                      },
+                      "legal_name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "external_ids": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": ["party_id", "party_type", "legal_name"],
+                    "additionalProperties": false
+                  }
+                },
+                "billable_items": {
+                  "type": "array",
+                  "description": "Billable items from ContractSphere",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "item_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "item_name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "pricing_model_id": {
+                        "type": "string"
+                      },
+                      "pricing_details": {
+                        "type": "object",
+                        "properties": {
+                          "list_price": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "contractual_price_floor": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "price_ceiling": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "rate_type": {
+                            "type": "string",
+                            "enum": ["fixed", "variable", "tiered", "usage-based", "subscription"]
+                          },
+                          "allowed_variance": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["percentage", "absolute", "none"]
+                              },
+                              "value": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": ["type", "value"],
+                            "additionalProperties": false
+                          },
+                          "currency": {
+                            "type": "string",
+                            "pattern": "^[A-Z]{3}$"
+                          },
+                          "unit_of_measure": {
+                            "type": "string"
+                          },
+                          "billing_frequency": {
+                            "type": "string",
+                            "enum": ["one-time", "monthly", "quarterly", "annually", "usage-based", "weekly"]
+                          }
+                        },
+                        "required": ["list_price", "currency"],
+                        "additionalProperties": false
+                      },
+                      "external_ids": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "required": ["item_id", "item_name", "pricing_model_id", "pricing_details"],
+                    "additionalProperties": false
+                  }
+                },
+                "pricing_models": {
+                  "type": "array",
+                  "description": "Pricing models from ContractSphere",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "model_id": {
+                        "type": "string"
+                      },
+                      "model_type": {
+                        "type": "string",
+                        "enum": ["flat-rate", "tiered", "volume", "usage-based"]
+                      },
+                      "model_name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "version": {
+                        "type": "string",
+                        "pattern": "^\\d+\\.\\d+(\\.\\d+)?$"
+                      },
+                      "calculation_method": {
+                        "type": "string"
+                      },
+                      "tiers": {
+                        "type": "array",
+                        "description": "Pricing tiers for tiered models",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "min_value": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "max_value": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "rate": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "currency": {
+                              "type": "string",
+                              "pattern": "^[A-Z]{3}$"
+                            }
+                          },
+                          "required": ["min_value", "max_value", "rate", "currency"],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": ["model_id", "model_type", "model_name", "version"],
+                    "additionalProperties": false
+                  }
+                },
+                "contracts": {
+                  "type": "object",
+                  "description": "Contract details",
+                  "properties": {
+                    "contract_id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "contract_title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "contract_type": {
+                      "type": "string",
+                      "enum": ["service", "purchase", "license", "partnership"]
+                    },
+                    "effective_date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "expiration_date": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "locations": {
+                      "type": "array",
+                      "description": "Service locations covered by contract",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "location_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "location_name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "location_type": {
+                            "type": "string",
+                            "enum": ["headquarters", "branch", "warehouse", "datacenter", "remote"]
+                          }
+                        },
+                        "required": ["location_id", "location_name", "location_type"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["contract_id", "contract_title", "contract_type", "effective_date", "expiration_date"],
+                  "additionalProperties": false
+                },
+                "payment_terms": {
+                  "type": "object",
+                  "description": "Payment terms",
+                  "properties": {
+                    "payment_schedule": {
+                      "type": "string",
+                      "enum": ["upfront", "monthly", "quarterly", "annually", "milestone", "arrears"]
+                    },
+                    "payment_method": {
+                      "type": "string",
+                      "enum": ["wire", "check", "ach", "credit-card", "invoice", "electronic"]
+                    },
+                    "net_days": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 365
+                    },
+                    "currency": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    }
+                  },
+                  "required": ["payment_schedule", "payment_method", "net_days", "currency"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["parties", "billable_items", "pricing_models", "contracts", "payment_terms"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["primary_contract_id", "contractsphere_data"],
+          "additionalProperties": false
+        },
+        "validation_criteria": {
+          "type": "object",
+          "description": "Validation rules and thresholds",
+          "properties": {
+            "rate_tolerance": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["percentage", "absolute", "none"]
+                },
+                "value": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": ["type", "value"],
+              "additionalProperties": false
+            },
+            "auto_approve_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 90,
+              "description": "Confidence threshold for automatic approval"
+            },
+            "manual_review_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 70,
+              "description": "Confidence threshold requiring manual review"
+            },
+            "aggregation_validation_mode": {
+              "type": "string",
+              "enum": ["strict", "tolerant", "auto"],
+              "default": "auto",
+              "description": "How strictly to validate aggregated invoices"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["request_id", "invoice_data", "contract_context"],
+      "additionalProperties": false
+    },
+    "validation_result": {
+      "type": "object",
+      "description": "Production validation results supporting aggregated billing",
+      "properties": {
+        "overall_status": {
+          "type": "string",
+          "enum": ["approved", "rejected", "manual_review"],
+          "description": "Final validation outcome"
+        },
+        "confidence_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Overall validation confidence"
+        },
+        "processing_time_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Processing time in milliseconds"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Validation completion timestamp"
+        },
+        "invoice_type_detected": {
+          "type": "string",
+          "enum": ["detailed", "aggregated", "hybrid"],
+          "description": "Type of invoice detected"
+        },
+        "contract_compliance": {
+          "type": "object",
+          "description": "Core contract compliance results",
+          "properties": {
+            "contract_match": {
+              "type": "object",
+              "properties": {
+                "contract_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "vendor_validated": {
+                  "type": "boolean",
+                  "description": "Vendor matches ContractSphere party"
+                },
+                "customer_validated": {
+                  "type": "boolean",
+                  "description": "Customer matches ContractSphere party"
+                },
+                "date_range_valid": {
+                  "type": "boolean",
+                  "description": "Invoice date within contract period"
+                },
+                "currency_match": {
+                  "type": "boolean",
+                  "description": "Currency matches contract"
+                }
+              },
+              "required": ["contract_id", "vendor_validated", "customer_validated", "date_range_valid", "currency_match"],
+              "additionalProperties": false
+            },
+            "line_item_validation": {
+              "type": "array",
+              "description": "Line item validation results",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "line_number": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "validation_approach": {
+                    "type": "string",
+                    "enum": ["direct_match", "aggregated_validation", "category_match", "contract_total"],
+                    "description": "How this line was validated"
+                  },
+                  "billable_item_match": {
+                    "type": "object",
+                    "properties": {
+                      "item_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Matched ContractSphere billable item"
+                      },
+                      "item_name": {
+                        "type": "string"
+                      },
+                      "match_confidence": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "match_method": {
+                        "type": "string",
+                        "enum": ["exact_reference", "external_id", "description_match", "ml_similarity", "aggregated_items"]
+                      }
+                    },
+                    "required": ["match_confidence", "match_method"],
+                    "additionalProperties": false
+                  },
+                  "pricing_validation": {
+                    "type": "object",
+                    "properties": {
+                      "pricing_model_id": {
+                        "type": "string"
+                      },
+                      "pricing_model_type": {
+                        "type": "string",
+                        "enum": ["flat-rate", "tiered", "volume", "usage-based"]
+                      },
+                      "contract_price": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Expected price from ContractSphere"
+                      },
+                      "invoiced_price": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Actual invoiced price"
+                      },
+                      "variance_amount": {
+                        "type": "number",
+                        "description": "Price difference"
+                      },
+                      "variance_percentage": {
+                        "type": "number",
+                        "description": "Percentage variance"
+                      },
+                      "within_tolerance": {
+                        "type": "boolean",
+                        "description": "Within allowed variance from ContractSphere"
+                      },
+                      "pricing_tier": {
+                        "type": "string",
+                        "description": "Applied pricing tier (for tiered models)"
+                      },
+                      "price_floor_ceiling_check": {
+                        "type": "object",
+                        "properties": {
+                          "above_ceiling": {
+                            "type": "boolean",
+                            "description": "Price exceeds ContractSphere ceiling"
+                          },
+                          "below_floor": {
+                            "type": "boolean",
+                            "description": "Price below ContractSphere floor"
+                          },
+                          "ceiling_amount": {
+                            "type": "number"
+                          },
+                          "floor_amount": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["pricing_model_id", "pricing_model_type", "contract_price", "invoiced_price", "within_tolerance"],
+                    "additionalProperties": false
+                  },
+                  "location_validation": {
+                    "type": "object",
+                    "properties": {
+                      "location_authorized": {
+                        "type": "boolean",
+                        "description": "Service location covered by contract"
+                      },
+                      "location_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "ContractSphere location ID (if matched)"
+                      }
+                    },
+                    "required": ["location_authorized"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["line_number", "validation_approach", "billable_item_match", "pricing_validation", "location_validation"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["contract_match", "line_item_validation"],
+          "additionalProperties": false
+        },
+        "aggregation_validation": {
+          "type": "object",
+          "description": "Validation specific to aggregated billing",
+          "properties": {
+            "aggregation_level_match": {
+              "type": "boolean",
+              "description": "Invoice aggregation matches contract expectations"
+            },
+            "aggregation_method_validated": {
+              "type": "boolean",
+              "description": "Aggregation calculation method verified"
+            },
+            "coverage_validation": {
+              "type": "object",
+              "properties": {
+                "expected_items_count": {
+                  "type": "integer",
+                  "description": "Number of items expected from contract"
+                },
+                "invoice_represents_count": {
+                  "type": "integer",
+                  "description": "Number of items represented in aggregated invoice"
+                },
+                "coverage_percentage": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "Percentage of contract items covered"
+                },
+                "coverage_confirmed": {
+                  "type": "boolean",
+                  "description": "All expected items accounted for"
+                },
+                "missing_items": {
+                  "type": "array",
+                  "description": "Items not found in aggregated invoice",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "item_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "item_name": {
+                        "type": "string"
+                      },
+                      "expected_amount": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["item_id", "item_name"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["expected_items_count", "invoice_represents_count", "coverage_percentage", "coverage_confirmed"],
+              "additionalProperties": false
+            },
+            "calculated_validation": {
+              "type": "object",
+              "properties": {
+                "expected_total": {
+                  "type": "number",
+                  "description": "Sum of all individual item prices from contract"
+                },
+                "invoice_total": {
+                  "type": "number",
+                  "description": "Total from aggregated invoice"
+                },
+                "base_calculation_verified": {
+                  "type": "boolean",
+                  "description": "Base calculation method matches contract"
+                },
+                "variance_justified": {
+                  "type": "boolean",
+                  "description": "Any variance has valid justification"
+                },
+                "justification": {
+                  "type": "string",
+                  "enum": ["exact_match", "pro_rated", "discount_applied", "bundling_savings", "partial_month", "credit_applied", "requires_investigation"],
+                  "description": "Reason for any variance"
+                },
+                "justification_details": {
+                  "type": "string",
+                  "description": "Detailed explanation of variance"
+                }
+              },
+              "required": ["expected_total", "invoice_total", "variance_justified"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["aggregation_level_match", "coverage_validation", "calculated_validation"],
+          "additionalProperties": false
+        },
+        "exceptions": {
+          "type": "array",
+          "description": "Validation exceptions requiring attention",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exception_type": {
+                "type": "string",
+                "enum": [
+                  "pricing_variance",
+                  "price_ceiling_exceeded",
+                  "price_below_floor",
+                  "unauthorized_service",
+                  "location_unauthorized",
+                  "vendor_mismatch",
+                  "contract_expired",
+                  "currency_mismatch",
+                  "aggregation_mismatch",
+                  "coverage_incomplete",
+                  "calculation_error"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["low", "medium", "high", "critical"]
+              },
+              "line_number": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Affected line item (if applicable)"
+              },
+              "expected_value": {
+                "description": "Expected value from ContractSphere"
+              },
+              "actual_value": {
+                "description": "Actual value from invoice"
+              },
+              "financial_impact": {
+                "type": "number",
+                "description": "Dollar impact of this exception"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable exception description"
+              },
+              "recommendation": {
+                "type": "string",
+                "enum": [
+                  "approve_with_adjustment",
+                  "request_vendor_correction",
+                  "escalate_for_review",
+                  "block_payment",
+                  "request_detailed_invoice",
+                  "verify_coverage"
+                ]
+              }
+            },
+            "required": ["exception_type", "severity", "message", "recommendation"],
+            "additionalProperties": false
+          }
+        },
+        "financial_summary": {
+          "type": "object",
+          "description": "Financial impact summary",
+          "properties": {
+            "original_invoice_amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "validated_amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "potential_savings": {
+              "type": "number",
+              "description": "Overpayment amount prevented"
+            },
+            "recommended_payment_amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "savings_breakdown": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "enum": ["pricing_correction", "unauthorized_service_removal", "rate_adjustment", "aggregation_optimization"]
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "required": ["category", "amount"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["original_invoice_amount", "validated_amount", "potential_savings", "recommended_payment_amount", "currency"],
+          "additionalProperties": false
+        },
+        "next_actions": {
+          "type": "object",
+          "description": "Recommended next steps",
+          "properties": {
+            "primary_action": {
+              "type": "string",
+              "enum": [
+                "auto_approve_payment",
+                "approve_with_adjustments",
+                "route_for_manual_review",
+                "block_payment_pending_resolution",
+                "request_invoice_detail",
+                "verify_aggregation_method"
+              ]
+            },
+            "required_approvers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deadline": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "additional_documentation_needed": {
+              "type": "array",
+              "description": "Documents needed for full validation",
+              "items": {
+                "type": "string",
+                "enum": ["detailed_invoice", "equipment_list", "service_report", "coverage_verification"]
+              }
+            }
+          },
+          "required": ["primary_action"],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "overall_status",
+        "confidence_score",
+        "processing_time_ms",
+        "timestamp",
+        "invoice_type_detected",
+        "contract_compliance",
+        "exceptions",
+        "financial_summary",
+        "next_actions"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["validation_request"],
+  "additionalProperties": false,
+  "schema_metadata": {
+    "product": "SpendRule ContractSphere Validation Engine",
+    "schema_version": "1.1.0",
+    "release_date": "2025-07-02",
+    "vendor": "SpendRule",
+    "extends": "contractsphere-schema-v2.3.json",
+    "production_focus": {
+      "core_business_value": "Contract compliance validation with aggregated invoice support",
+      "complexity_level": "Production-ready with real-world billing patterns",
+      "deployment_readiness": "Handles both detailed and consolidated service invoices"
+    },
+    "contractsphere_integration": {
+      "native_uuid_references": "All entity references use ContractSphere UUIDs",
+      "pricing_model_support": "Core pricing models: flat-rate, tiered, volume, usage-based",
+      "party_validation": "Basic vendor/customer party matching",
+      "location_validation": "Simple location authorization checking",
+      "data_lineage": "Direct mapping to ContractSphere billable items and pricing models",
+      "aggregation_support": "NEW: Handles consolidated billing patterns"
+    },
+    "validation_capabilities": {
+      "contract_to_invoice_matching": "Primary validation mode - always available",
+      "pricing_compliance": "Price variance detection against ContractSphere pricing models",
+      "service_authorization": "Basic service coverage validation",
+      "location_compliance": "Simple location authorization checking",
+      "date_validation": "Contract effective period enforcement",
+      "currency_validation": "Currency consistency checking",
+      "aggregated_invoice_support": "NEW: Validates consolidated service invoices",
+      "coverage_verification": "NEW: Ensures all contract items are represented"
+    },
+    "aggregation_features": {
+      "billing_patterns_supported": [
+        "Line-item detail (original v1.0 mode)",
+        "Category consolidation (e.g., all 'GI Video' on one line)",
+        "Full contract consolidation (single monthly charge)",
+        "Location-based aggregation",
+        "Custom groupings"
+      ],
+      "validation_strategies": [
+        "Direct item matching when available",
+        "Sum validation for aggregated lines",
+        "Coverage percentage tracking",
+        "Pro-ration detection and validation"
+      ],
+      "real_world_scenarios": [
+        "Monthly service contracts with single invoice line",
+        "Bundled equipment maintenance agreements",
+        "Consolidated facility service charges",
+        "Pro-rated partial month billing"
+      ]
+    },
+    "performance_targets": {
+      "processing_time": "<2 seconds per invoice",
+      "accuracy": ">90% for contract compliance validation",
+      "throughput": "1000+ invoices per minute",
+      "confidence": ">85% confidence for auto-approval threshold",
+      "aggregation_overhead": "<10% additional processing time"
+    },
+    "deployment_characteristics": {
+      "minimal_integration_complexity": "Requires only ContractSphere contract data and invoice feeds",
+      "immediate_value_delivery": "Prevents pricing errors and unauthorized services from day one",
+      "scalable_foundation": "Designed for expansion to advanced features in future versions",
+      "production_stability": "Focused on reliability and consistent validation outcomes",
+      "backward_compatibility": "Fully compatible with v1.0 detailed invoice validation"
+    },
+    "business_impact": {
+      "primary_roi_drivers": [
+        "Pricing variance detection and correction",
+        "Unauthorized service identification",
+        "Contract compliance automation",
+        "Overpayment prevention",
+        "Aggregated invoice validation without manual calculation"
+      ],
+      "target_savings": "3-7% of service contract spend",
+      "implementation_timeline": "4-6 weeks from ContractSphere data to production validation",
+      "customer_success_metrics": [
+        "Processing time reduction",
+        "Manual review elimination",
+        "Audit compliance improvement",
+        "Vendor relationship preservation",
+        "Consolidated invoice handling"
+      ]
+    },
+    "changelog": {
+      "1.1.0": [
+        "Added billing_aggregation_level to invoice header",
+        "Enhanced line items with aggregation support",
+        "Added billing_preferences to contract context",
+        "New aggregation_validation section in results",
+        "Extended exception types for aggregation issues",
+        "Added invoice_type_detected to results",
+        "Backward compatible with v1.0 detailed invoices"
+      ]
+    },
+    "future_roadmap": {
+      "v1.2": "Add allocation algorithms for split billing across departments",
+      "v1.3": "Machine learning for aggregation pattern detection",
+      "v2.0": "Advanced features: GPO compliance, performance-based pricing, complex location terms",
+      "enterprise_features": "Multi-party contracts, sophisticated audit trails, advanced analytics"
+    }
+  }
+}
