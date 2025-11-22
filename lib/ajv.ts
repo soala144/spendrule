@@ -6,19 +6,19 @@ import intelligenceSchema from "../spendrule-Intelligence-json.json" assert { ty
 const ajv = new Ajv({ allErrors: true, strict: false });
 
 export function validateContractSphere(data: unknown) {
-  const validate = ajv.compile(contractsphereSchema as any);
+  const validate = ajv.compile(contractsphereSchema as object);
   const valid = validate(data);
   return { valid, errors: validate.errors };
 }
 
 export function validateValidationRequest(data: unknown) {
-  const validate = ajv.compile(validationEngineSchema as any);
+  const validate = ajv.compile(validationEngineSchema as object);
   const valid = validate(data);
   return { valid, errors: validate.errors };
 }
 
 export function validateIntelligence(data: unknown) {
-  const validate = ajv.compile(intelligenceSchema as any);
+  const validate = ajv.compile(intelligenceSchema as object);
   const valid = validate(data);
   return { valid, errors: validate.errors };
 }
