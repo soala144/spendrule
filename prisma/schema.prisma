@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  AuditLogs AuditLog[]
+}
+
+model Vendor {
+  id          String   @id @default(uuid())
+  name        String
+  externalIds Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Contracts   Contract[]
+  Invoices    Invoice[]
+  Exceptions  Exception[]
+}
+
+model Contract {
+  id                 String   @id @default(uuid())
+  vendorId           String?
+  vendor             Vendor?  @relation(fields: [vendorId], references: [id])
+  status             String?
+  confidence         Float?
+  contractJson       Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  Invoices           Invoice[]
+  Exceptions         Exception[]
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  vendorId    String?
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
+  contractId  String?
+  contract    Contract? @relation(fields: [contractId], references: [id])
+  raw         Json?
+  normalized  Json
+  validation  Json?
+  date        DateTime?
+  currency    String?
+  amount      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Exceptions  Exception[]
+}
+
+model Exception {
+  id         String   @id @default(uuid())
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id])
+  vendorId   String?
+  vendor     Vendor?  @relation(fields: [vendorId], references: [id])
+  type       String
+  severity   String
+  status     String
+  details    Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  entityType String
+  entityId  String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
